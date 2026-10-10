@@ -1,0 +1,820 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SentryLine</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>:root{
+  --bg:#05090e; --bg2:#08111a; --surface:#0b141d; --surface2:#0f1b27; --line:#1a2a3a; --line2:#26394d;
+  --fg:#dce7f0; --muted:#7a8fa3; --accent:#38d4f4; --accent-fg:#031319;
+  --safe:#3ddc97; --warn:#f5b83d; --crit:#ff5a64;
+  --safe-bg:rgba(61,220,151,.12); --warn-bg:rgba(245,184,61,.12); --crit-bg:rgba(255,90,100,.14);
+  --display:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;color:var(--fg);font-family:var(--display);font-size:14px;line-height:1.5;padding-inline:16px;padding-block:18px;
+  background:radial-gradient(1100px 480px at 75% -8%,rgba(56,212,244,.09),transparent 60%),
+  linear-gradient(rgba(56,212,244,.03) 1px,transparent 1px) 0 0/34px 34px,
+  linear-gradient(90deg,rgba(56,212,244,.03) 1px,transparent 1px) 0 0/34px 34px,var(--bg)}
+.wrap{max-width:1360px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px}
+.brand svg{width:34px;height:34px;flex:none}
+h1{margin:0;font-size:1.25rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
+header p{margin:0;color:var(--muted);font-size:.78rem}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-family:var(--mono);font-size:.68rem;color:var(--muted);border:1px solid var(--line2);padding:3px 8px;border-radius:3px;letter-spacing:.06em;text-transform:uppercase}
+.tag.live{color:var(--safe);border-color:rgba(61,220,151,.4)}
+.pipe{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media(max-width:640px){.pipe{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stage{border:1px solid var(--line);background:var(--surface);border-radius:4px;padding:8px 10px;position:relative;min-width:0}
+.stage b{display:block;font-family:var(--mono);font-size:.68rem;letter-spacing:.12em;color:var(--muted);font-weight:500}
+.stage span{display:block;font-family:var(--mono);font-size:.82rem;margin-top:2px}
+.stage::before{content:"";position:absolute;left:10px;right:10px;bottom:0;height:2px;background:var(--line2)}
+.stage[data-state="on"]{border-color:rgba(56,212,244,.45)}
+.stage[data-state="on"]::before{background:var(--accent)}
+.stage[data-state="on"] span{color:var(--accent)}
+.stage[data-state="alert"]{border-color:rgba(255,90,100,.6);background:var(--crit-bg)}
+.stage[data-state="alert"]::before{background:var(--crit)}
+.stage[data-state="alert"] span{color:var(--crit)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.stat{border:1px solid var(--line);background:var(--surface);border-radius:4px;padding:8px 12px}
+.stat small{display:block;font-family:var(--mono);font-size:.64rem;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+.stat b{font-family:var(--mono);font-size:1.3rem;font-weight:500;font-variant-numeric:tabular-nums}
+.grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr) minmax(0,.95fr);gap:14px;align-items:start}
+@media(max-width:1100px){.grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.grid>.col:last-child{grid-column:1/-1}}
+@media(max-width:700px){.grid{grid-template-columns:minmax(0,1fr)}}
+.col{display:flex;flex-direction:column;gap:14px;min-width:0}
+.panel{background:linear-gradient(180deg,var(--surface2),var(--surface));border:1px solid var(--line);border-radius:6px;padding:14px;position:relative}
+.panel::before{content:"";position:absolute;top:-1px;left:14px;width:26px;height:2px;background:var(--accent)}
+h2{display:flex;align-items:center;gap:10px;margin:0 0 12px;font-family:var(--mono);font-size:.68rem;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+h2::after{content:"";flex:1;height:1px;background:var(--line)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button,select{font:inherit;font-size:.84rem;cursor:pointer;border-radius:4px;border:1px solid var(--line2);background:var(--bg2);color:var(--fg);padding:7px 12px}
+select{padding:7px 8px}
+button:hover{border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);font-weight:600}
+button.danger{background:var(--crit);border-color:var(--crit);color:#1a0508;font-weight:600}
+button.small{padding:4px 9px;font-size:.76rem}
+button:disabled{opacity:.5;cursor:default}
+.scen[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+#log{height:230px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;font-family:var(--mono);font-size:.82rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:10px}
+.line{padding-left:10px;border-left:3px solid var(--line2)}
+.line.SAFE{border-color:var(--safe)}.line.SUSPICIOUS{border-color:var(--warn)}.line.CRITICAL_SCAM{border-color:var(--crit)}
+.line small{display:block;color:var(--muted);font-size:.68rem}
+mark{background:none;font-weight:500;border-radius:2px;padding:0 2px}
+mark.auth{background:var(--crit-bg);color:var(--crit)}
+mark.fin{background:var(--warn-bg);color:var(--warn)}
+mark.urg{background:rgba(56,212,244,.12);color:var(--accent)}
+#syslog{height:150px;overflow-y:auto;font-family:var(--mono);font-size:.7rem;line-height:1.6;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:8px 10px;color:var(--muted)}
+#syslog div{white-space:pre-wrap;overflow-wrap:anywhere}
+#syslog .ok{color:var(--safe)}#syslog .warn{color:var(--warn)}#syslog .crit{color:var(--crit)}#syslog .info{color:var(--accent)}
+.empty{color:var(--muted);font-style:italic;font-size:.82rem}
+form.inline{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+input[type=text],input[type=tel],input[type=password]{flex:1;min-width:120px;font:inherit;font-size:.88rem;padding:7px 10px;border-radius:4px;border:1px solid var(--line2);background:var(--bg);color:var(--fg)}
+.gaugewrap{max-width:300px;margin:0 auto}
+#gauge{width:100%;height:auto;display:block}
+#gauge .track{fill:none;stroke:var(--line2);stroke-width:12;stroke-linecap:round}
+#gauge .prog{fill:none;stroke:var(--safe);stroke-width:12;stroke-linecap:round;stroke-dasharray:251.33;stroke-dashoffset:251.33}
+#gauge .tick{stroke:var(--fg);stroke-width:1.5;opacity:.5}
+#gauge .needle{stroke:var(--fg);stroke-width:2.5;stroke-linecap:round;transform-origin:100px 100px;transform:rotate(-90deg)}
+#gauge text{font-family:var(--mono);font-size:7px;fill:var(--muted)}
+.gread{text-align:center;margin-top:-4px}
+#score{font-family:var(--mono);font-size:2.6rem;font-weight:500;line-height:1;font-variant-numeric:tabular-nums}
+.badge{display:inline-block;margin-top:6px;font-family:var(--mono);font-size:.72rem;font-weight:500;padding:3px 10px;border-radius:3px;letter-spacing:.08em}
+.SAFE{color:var(--safe)}.SUSPICIOUS{color:var(--warn)}.CRITICAL_SCAM{color:var(--crit)}
+.badge.SAFE{background:var(--safe-bg)}.badge.SUSPICIOUS{background:var(--warn-bg)}.badge.CRITICAL_SCAM{background:var(--crit-bg)}
+#why{margin:10px 0 0;font-size:.84rem;color:var(--muted);text-align:center}
+.vec{display:grid;grid-template-columns:minmax(0,9.5rem) minmax(0,1fr) 3.6rem;gap:10px;align-items:center;font-size:.78rem;margin-top:8px}
+.vec .bar{height:8px;background:var(--bg);border:1px solid var(--line);border-radius:2px;overflow:hidden}
+.vec .bar i{display:block;height:100%;width:0;transition:width .35s}
+.vec .v{font-family:var(--mono);text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.vec.auth i{background:var(--crit)}.vec.fin i{background:var(--warn)}.vec.urg i{background:var(--accent)}.vec.clu i{background:var(--fg)}
+svg.chart{display:block;width:100%;height:auto}
+#wave{display:block;width:100%;height:auto;background:var(--bg);border:1px solid var(--line);border-radius:4px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;min-height:28px}
+.chip{font-family:var(--mono);font-size:.68rem;text-transform:uppercase;padding:2px 8px;border-radius:3px;border:1px solid var(--line2)}
+.chip.auth{color:var(--crit);background:var(--crit-bg);border-color:transparent}
+.chip.fin{color:var(--warn);background:var(--warn-bg);border-color:transparent}
+.chip.urg{color:var(--accent);border-color:rgba(56,212,244,.45)}
+.chip.cluster{background:var(--crit);color:#1a0508;border-color:transparent;font-weight:500}
+.meta{display:flex;justify-content:space-between;gap:8px;font-family:var(--mono);font-size:.7rem;color:var(--muted);flex-wrap:wrap}
+.foot{font-size:.74rem;color:var(--muted)}
+.list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.item{display:flex;justify-content:space-between;gap:8px;align-items:center;border:1px solid var(--line);border-radius:4px;padding:8px 10px;flex-wrap:wrap}
+.item .who{min-width:0;overflow-wrap:anywhere}
+.item .who b{font-weight:600}.item .who span{display:block;font-family:var(--mono);font-size:.74rem;color:var(--muted)}
+.item .acts{display:flex;gap:6px}
+.inc{border:1px solid var(--line);border-left:3px solid var(--crit);border-radius:4px;padding:8px 10px;font-size:.8rem;background:var(--bg)}
+.inc small{display:block;font-family:var(--mono);color:var(--muted);font-size:.68rem}
+.chk{display:flex;gap:8px;align-items:flex-start;font-size:.84rem;margin-top:8px}
+.chk input{margin-top:4px}
+label.fld{display:block;font-size:.74rem;color:var(--muted);margin-bottom:4px}
+.guard-box{border:1px dashed var(--line2);border-radius:4px;padding:10px;margin-top:10px;font-size:.8rem}
+.code{font-family:var(--mono);font-size:.86rem;overflow-wrap:anywhere;color:var(--accent)}
+a.btn{display:inline-block;font-size:.84rem;border-radius:4px;border:1px solid var(--line2);background:var(--bg2);color:var(--fg);padding:7px 12px;text-decoration:none}
+a.btn:hover{border-color:var(--accent)}
+a.btn.small{padding:4px 9px;font-size:.76rem}
+#interim{min-height:1.3em;font-family:var(--mono);font-size:.76rem;color:var(--muted);margin-top:8px}
+#actions{display:flex;flex-direction:column;gap:8px;font-size:.84rem}
+#ov{position:fixed;inset:0;z-index:10;background:rgba(60,8,14,.92);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto}
+#ov .box{background:var(--surface);border:2px solid var(--crit);border-radius:8px;padding:20px;max-width:460px;width:100%;display:flex;flex-direction:column;gap:12px}
+#ov h3{margin:0;color:var(--crit);font-size:1.3rem;letter-spacing:.06em;text-transform:uppercase}
+#ov-count{font-family:var(--mono);font-size:1rem;font-weight:500}
+#ov p{margin:0;color:var(--muted);font-size:.88rem}
+#gview{max-width:560px;margin:8vh auto 0;display:flex;flex-direction:column;gap:16px}
+#gview .big{font-family:var(--mono);font-size:1.1rem}
+#galert{border-color:var(--crit);background:var(--crit-bg)}
+@media(prefers-reduced-motion:no-preference){#ov:not([hidden]){animation:pulse 1s ease-in-out infinite}@keyframes pulse{50%{background:rgba(20,4,8,.96)}}#gauge .prog{transition:stroke-dashoffset .5s,stroke .3s}#gauge .needle{transition:transform .5s}}
+</style>
+</head><body>
+<div class="wrap" id="app">
+  <header>
+    <div class="brand">
+      <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 3 5 9v10c0 9.5 6.2 15.6 15 18 8.8-2.4 15-8.5 15-18V9z" fill="none" stroke="#38d4f4" stroke-width="2"/><path d="M11 21h5l2-6 4 12 2-6h5" fill="none" stroke="#38d4f4" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>
+      <div><h1>SentryLine</h1><p>Real-time scam call interception and response</p></div>
+    </div>
+    <div class="tags"><span class="tag live" id="mode">web app</span><span class="tag">engine v2.0</span><span class="tag" id="clock">--:--:--</span></div>
+  </header>
+
+  <div class="pipe" id="pipe" aria-label="Processing pipeline">
+    <div class="stage" id="p-mic" data-state="idle"><b>01 · MIC INPUT</b><span>idle</span></div>
+    <div class="stage" id="p-asr" data-state="idle"><b>02 · SPEECH TO TEXT</b><span>standby</span></div>
+    <div class="stage" id="p-nlp" data-state="idle"><b>03 · INTENT ANALYZER</b><span>ready</span></div>
+    <div class="stage" id="p-act" data-state="idle"><b>04 · AUTO RESPONSE</b><span>armed</span></div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><small>Sentences</small><b id="st-n">0</b></div>
+    <div class="stat"><small>Avg analysis</small><b id="st-lat">–</b></div>
+    <div class="stat"><small>Peak risk</small><b id="st-peak">0</b></div>
+    <div class="stat"><small>Context window</small><b id="st-win">0/12</b></div>
+    <div class="stat"><small>Distinct signals</small><b id="st-vec">0</b></div>
+  </div>
+
+  <div class="grid">
+    <div class="col">
+      <section class="panel">
+        <h2>Call source</h2>
+        <div class="row" id="scenarios"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="primary" id="play">Play sample call</button>
+          <button id="listen">Listen with mic</button>
+          <button id="reset">Reset</button>
+        </div>
+        <div id="interim" aria-live="polite"></div>
+        <div id="recstate" class="empty" style="margin-top:4px"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Live transcript</h2>
+        <div id="log" aria-live="polite"><span class="empty">Press Listen and speak, play a sample call, or type a sentence below.</span></div>
+        <form class="inline" id="f">
+          <input type="text" id="say" placeholder="Type English or Telugu scam words/sentences, e.g. OTP cheppandi, dabbu transfer cheyyandi" autocomplete="off">
+          <button type="submit">Send</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>System log</h2>
+        <div id="syslog" role="log"></div>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="panel">
+        <h2>Threat level</h2>
+        <div class="gaugewrap">
+          <svg id="gauge" viewBox="-14 0 228 112" role="img" aria-label="Risk gauge">
+            <path class="track" d="M20 100 A80 80 0 0 1 180 100"/>
+            <path class="prog" id="g-prog" d="M20 100 A80 80 0 0 1 180 100"/>
+            <g id="g-ticks"></g>
+            <line class="needle" id="g-needle" x1="100" y1="100" x2="100" y2="34"/>
+            <circle cx="100" cy="100" r="4" fill="var(--fg)"/>
+          </svg>
+          <div class="gread"><div id="score" class="SAFE">0</div></div>
+        </div>
+        <div style="text-align:center"><span class="badge SAFE" id="badge">SAFE</span></div>
+        <p id="why">No call analysed yet.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Score breakdown</h2>
+        <div class="vec auth"><span>Authority claims</span><div class="bar"><i id="vb-auth"></i></div><span class="v" id="vv-auth">0 pts</span></div>
+        <div class="vec fin"><span>Money / code demands</span><div class="bar"><i id="vb-fin"></i></div><span class="v" id="vv-fin">0 pts</span></div>
+        <div class="vec urg"><span>Pressure / remote access</span><div class="bar"><i id="vb-urg"></i></div><span class="v" id="vv-urg">0 pts</span></div>
+        <div class="vec clu"><span>Coercion cluster bonus</span><div class="bar"><i id="vb-clu"></i></div><span class="v" id="vv-clu">0 pts</span></div>
+        <div class="chips" id="chips" style="margin-top:12px"><span class="empty">Nothing yet</span></div>
+        <div class="meta" style="margin-top:10px"><span id="action">MONITOR</span><span id="lat">latency –</span></div>
+      </section>
+
+      <section class="panel">
+        <h2>Risk timeline</h2>
+        <svg id="chart" class="chart" viewBox="0 0 320 120" role="img" aria-label="Risk score after each sentence"></svg>
+      </section>
+
+      <section class="panel">
+        <h2>Audio input</h2>
+        <canvas id="wave" width="640" height="120" aria-label="Live microphone waveform"></canvas>
+        <div class="meta" style="margin-top:8px"><span id="wavestat">MIC IDLE</span><span id="wavelvl"></span></div>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="panel">
+        <h2>Incident log</h2>
+        <div class="row" style="justify-content:flex-end"><button class="small" id="clearlog">Clear</button></div>
+        <div class="list" id="incidents" style="margin-top:6px"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Guardian</h2>
+        <p class="empty" style="margin:0">Open this link on your guardian's phone or laptop. It sounds an alarm there the moment a scam is detected here.</p>
+        <div class="guard-box">
+          <div>Pairing code</div><div class="code" id="paircode"></div>
+          <input type="text" id="glink" readonly style="width:100%;margin-top:8px" aria-label="Guardian link">
+          <div class="row" style="margin-top:8px"><button id="copylink" class="small">Copy guardian link</button><button id="testg" class="small">Send test alert</button><button id="newcode" class="small">New code</button></div>
+        </div>
+        <div id="gstatus" class="empty" style="margin-top:8px"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Automatic message (Telegram)</h2>
+        <p class="empty" style="margin:0 0 8px">Sends the alert text and the 10 second recording to your guardian by itself. One-time setup: in Telegram open @BotFather, send /newbot and copy the token. Add the bot to a chat with your guardian and send any message there, then press Find chat.</p>
+        <label class="fld" for="tgtoken">Bot token</label>
+        <input type="password" id="tgtoken" placeholder="123456:ABC…" autocomplete="off" style="width:100%">
+        <label class="fld" for="tgchat" style="margin-top:8px">Chat ID</label>
+        <input type="text" id="tgchat" placeholder="e.g. -1001234567890" autocomplete="off" style="width:100%">
+        <div class="row" style="margin-top:8px"><button id="tgfind" class="small">Find chat</button><button id="tgtest" class="small">Send test message</button></div>
+        <div id="tgstatus" class="empty" style="margin-top:8px" aria-live="polite"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Emergency contacts</h2>
+        <form class="inline" id="cf" style="margin-top:0">
+          <input type="text" id="cname" placeholder="Name (e.g. Amma)" autocomplete="off">
+          <input type="tel" id="cphone" placeholder="Phone (+91…)" autocomplete="off">
+          <button type="submit" class="primary">Add</button>
+        </form>
+        <div class="list" id="contacts"></div>
+        <div id="status" aria-live="polite" class="empty" style="margin-top:8px"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Safety settings</h2>
+        <label class="fld" for="myname">Your name (used in the alert text)</label>
+        <input type="text" id="myname" placeholder="Your name" autocomplete="off" style="width:100%">
+        <label class="fld" for="myphone" style="margin-top:8px">Your phone (so your guardian can call you)</label>
+        <input type="tel" id="myphone" placeholder="+91…" autocomplete="off" style="width:100%">
+        <label class="chk"><input type="checkbox" id="opt-siren"> Sound a loud siren when a scam is detected</label>
+        <label class="chk"><input type="checkbox" id="opt-sms"> Automatically alert guardian and contacts when a scam is detected</label>
+        <label class="fld" for="opt-cd" style="margin-top:8px">Time to cancel a false alarm</label>
+        <select id="opt-cd"><option value="0">Send immediately</option><option value="5">5 seconds</option><option value="10">10 seconds</option></select>
+        <label class="chk"><input type="checkbox" id="opt-rec"> Record the first 10 seconds of each call as evidence</label>
+      </section>
+
+      <section class="panel">
+        <h2>Report it</h2>
+        <p class="empty" style="margin:0 0 10px">In India, call the National Cyber Crime Helpline or report at cybercrime.gov.in.</p>
+        <a class="btn" href="tel:1930">Call 1930</a>
+      </section>
+    </div>
+  </div>
+
+  <p class="foot">Scoring: authority and money-transfer terms add 15 points each, pressure and remote-access terms add 10, and an authority + money pattern adds 35. 40 and above is suspicious, 70 and above is critical. The last 12 sentences count as context. Speech is recognised by the browser; scoring runs on this device.</p>
+</div>
+
+<div id="ov" role="alertdialog" aria-labelledby="ov-title" hidden>
+  <div class="box">
+    <h3 id="ov-title">Scam call detected</h3>
+    <p id="ov-why"></p>
+    <div id="ov-count"></div>
+    <div id="actions"></div>
+    <div class="row">
+      <button class="danger" id="ov-send">Alert now</button>
+      <button id="ov-stop">Stop siren</button>
+      <button id="ov-cancel">I'm safe, cancel</button>
+    </div>
+  </div>
+</div>
+
+<main id="gview" hidden>
+  <header><div><h1>SentryLine Guardian</h1><p>This screen sounds an alarm when the person you protect is on a scam call.</p></div><span class="tag" id="gconn">connecting</span></header>
+  <section class="panel">
+    <h2>Status</h2>
+    <div class="big" id="gstate">Waiting for alerts</div>
+    <p class="empty" id="gnote" style="margin:8px 0 0">Tap the button once so your browser allows the alarm sound.</p>
+    <div class="row" style="margin-top:10px"><button class="primary" id="genable">Enable alarm sound</button><button id="gstop">Stop alarm</button></div>
+  </section>
+  <section class="panel" id="galert" hidden>
+    <h2>Alert</h2>
+    <div class="big" id="gtitle"></div>
+    <p id="gbody" style="margin:8px 0"></p>
+    <div class="row" id="gacts"></div>
+  </section>
+  <section class="panel"><h2>Recent alerts</h2><div class="list" id="ghist"><span class="empty">None yet</span></div></section>
+</main>
+
+<script>
+
+const AUTH=[
+  "police","cbi","rbi","customs","court","warrant","arrest","digital arrest","crime branch","cyber cell","inspector",
+  "police station","cyber police","income tax","enforcement directorate","ed officer","government officer",
+  "పోలీసు","పోలీస్","సిబిఐ","సీబీఐ","ఆర్బీఐ","కోర్టు","అరెస్ట్","డిజిటల్ అరెస్ట్","సైబర్ క్రైమ్","సైబర్ పోలీస్",
+  "meeru police station nundi","memu cbi nundi","mee meeda case","mee peru meeda case","arrest chestam","arrest chesthamu",
+  "police matladutunnaru","officer matladutunnanu","court order vachindi"
+];
+const FIN=[
+  "otp","pin","cvv","bank account","upi","transfer","safe account","lakh","crore","deposit","funds",
+  "password","debit card","credit card","account number","ifsc","net banking","upi pin","verification code",
+  "send money","pay now","payment","refund fee","processing fee","wallet","gift card","crypto","cryptocurrency",
+  "ఖాతా","బ్యాంక్","డబ్బులు","డబ్బు","ఓటీపీ","ఒటిపి","పిన్","పాస్‌వర్డ్","పాస్వర్డ్","యూపీఐ","రహస్య కోడ్",
+  "డబ్బులు పంపండి","డబ్బు పంపండి","డబ్బులు ట్రాన్స్ఫర్ చేయండి","మీ ఓటీపీ చెప్పండి","మీ పిన్ చెప్పండి",
+  "ఖాతా బ్లాక్","అకౌంట్ బ్లాక్","డబ్బులు జమ చేయండి","వెంటనే చెల్లించండి",
+  "dabbu pampandi","dabbulu pampandi","otp cheppandi","mee otp cheppandi","upi pin cheppandi",
+  "account number cheppandi","password cheppandi","money transfer cheyyandi","dabbu transfer cheyyandi",
+  "refund kosam pay cheyyandi","account lo money deposit cheyyandi","mee bank account"
+];
+const URG=[
+  "immediately","right now","don't hang up","do not disconnect","urgent","today itself","anydesk","teamviewer","quicksupport","screen share","do not tell anyone","don't tell anyone","keep this confidential",
+  "act now","last warning","within 10 minutes","your account will be blocked","click this link","install this app","remote access","screen sharing","share your screen","verify now","final notice","limited time",
+  "వెంటనే","ఇప్పుడే","తక్షణమే","ఎవరికి చెప్పొద్దు","కాల్ కట్ చేయొద్దు","ఫోన్ పెట్టొద్దు","ఇది అత్యవసరం","ఈరోజే","ఇప్పుడే చేయండి",
+  "ventane","ippude","tvaraga cheyyandi","call cut cheyyakandi","phone pettakandi","evariki cheppakandi",
+  "idi urgent","ee roje","mee account block avutundi","link open cheyyandi","app install cheyyandi",
+  "bhayapadakandi","meeru cooperate cheyyali","10 minutes lo cheyyali"
+];
+const WINDOW=12, COUNTDOWN=10;
+const rx=s=>s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+const find=(terms,t)=>terms.filter(x=>new RegExp("\\b"+rx(x)+"\\b").test(t));
+
+function Analyzer(){this.ctx=[];}
+Analyzer.prototype.reset=function(){this.ctx=[];};
+Analyzer.prototype.push=function(chunk){
+  this.ctx.push(chunk); if(this.ctx.length>WINDOW) this.ctx.shift();
+  const text=this.ctx.join(" ").toLowerCase();
+  const a=find(AUTH,text), f=find(FIN,text), u=find(URG,text);
+  let score=a.length*15+f.length*15+u.length*10, cluster=false;
+  if(a.length&&f.length){score+=35;cluster=true;}
+  score=Math.min(score,100);
+  let level="SAFE",action="MONITOR",why="Normal conversational pattern.";
+  if(score>=70){level="CRITICAL_SCAM";action="SIREN + ALERT GUARDIAN";why="This call matches a known scam pattern: pressure, a request for money or codes, and claims of authority or remote access.";}
+  else if(score>=40){level="SUSPICIOUS";action="SHOW_WARNING_OVERLAY";why="Some scam indicators detected. Verify the caller's identity through an official number.";}
+  return{score,level,action,why,a,f,u,cluster};
+};
+
+const SCENARIOS={
+  "Digital arrest scam":["Hello sir, is this Karunya Kanth speaking?","This is Inspector Sharma calling from the CBI Delhi Crime Branch cyber cell.","Your bank account has been flagged in a 50 lakh money laundering investigation.","We are issuing an immediate digital arrest warrant against your name right now.","You must transfer your funds to our secure RBI safe account immediately to avoid prison.","Do not disconnect this call or local police will arrive at your home."],
+  "Bank KYC scam":["Good afternoon, I am calling from your bank's head office.","Your KYC has expired and your bank account will be blocked today itself.","Please share the OTP you just received so we can verify you.","Also confirm your UPI PIN, this is urgent."],
+  "Remote access scam":["Hello, this is customer support from your bank's security team.","We detected a suspicious transaction from your bank account, please install AnyDesk so we can fix it.","Do not tell anyone about this call, it is urgent.","Now share your screen share code and the OTP immediately."],
+  "Friendly call":["Hi, are we still meeting for lunch tomorrow?","I booked the table near the window at one o'clock.","Bring the notes from class, I forgot to copy chapter four.","Great, see you then."],
+  "Telugu OTP scam":["Namaskaram sir, nenu bank customer care nundi matladutunnanu.","Mee bank account KYC expire ayyindi; ee roju account block avutundi.","Mee phone ki vachina OTP cheppandi, verification kosam.","Ventane cheppandi, call cut cheyyakandi."],
+  "Telugu digital arrest scam":["Hello sir, memu cyber police nundi matladutunnam.","Mee peru meeda case undi, mimmalni arrest chestam ani cheptunnaru.","Case close cheyyalante mee account nundi dabbu transfer cheyyali.","Mee OTP, UPI PIN cheppandi; evariki cheppakandi."],
+  "UPI refund scam":["Congratulations, your refund is pending.","Click this link and enter your UPI PIN to receive the refund.","Pay a small processing fee right now to release your money.","Do not tell anyone until the refund is completed."],
+  "Safe Telugu-English call":["Hello, nenu delivery partner matladutunnanu.","Mee parcel repu delivery avutundi.","Address confirm cheyyadaniki official app open cheyyandi.","Thank you, have a nice day."]
+};
+
+
+const $=id=>document.getElementById(id);
+function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;}
+const store={
+  get(k,d){try{const v=localStorage.getItem("sl_"+k);return v?JSON.parse(v):d;}catch(e){return d;}},
+  set(k,v){try{localStorage.setItem("sl_"+k,JSON.stringify(v));}catch(e){}}
+};
+const NTFY="https://ntfy.sh/";
+const gmatch=location.hash.match(/^#guardian=([a-z0-9-]{6,40})$/i);
+
+/* ---------- shared: siren, vibration, notifications ---------- */
+let ac=null,osc=null,sirenTimer=null,sirenOn=false;
+function unlockAudio(){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();if(ac.state==="suspended")ac.resume();}catch(e){}}
+function startSiren(){
+  if(sirenOn) return; sirenOn=true;
+  try{
+    unlockAudio(); osc=ac.createOscillator(); const g=ac.createGain(); g.gain.value=.25;
+    osc.type="sawtooth"; osc.connect(g); g.connect(ac.destination); osc.start(); let up=true;
+    sirenTimer=setInterval(()=>{osc.frequency.setValueAtTime(up?900:600,ac.currentTime);up=!up;},450);
+  }catch(e){}
+}
+function stopSiren(){
+  if(!sirenOn) return; sirenOn=false; clearInterval(sirenTimer); try{osc.stop();}catch(e){} osc=null;
+}
+function buzz(){try{navigator.vibrate&&navigator.vibrate([400,150,400,150,400]);}catch(e){}}
+function notify(title,body){
+  try{if("Notification" in window&&Notification.permission==="granted")new Notification(title,{body,requireInteraction:true});}catch(e){}
+}
+let wake=null;
+async function keepAwake(){try{if(navigator.wakeLock)wake=await navigator.wakeLock.request("screen");}catch(e){}}
+function releaseAwake(){try{wake&&wake.release();}catch(e){} wake=null;}
+
+/* ---------- guardian transport: BroadcastChannel (same browser) + ntfy.sh (any device) ---------- */
+let bc=null; try{bc=new BroadcastChannel("sentryline");}catch(e){}
+function newCode(){const a=new Uint8Array(8);crypto.getRandomValues(a);return "sl-"+Array.from(a,x=>(x%36).toString(36)).join("");}
+function sendToGuardian(code,payload){
+  const p=Object.assign({code},payload);
+  try{bc&&bc.postMessage(p);}catch(e){}
+  const text=JSON.stringify(p);
+  return fetch(NTFY+code,{method:"POST",body:text,headers:{Title:"SentryLine alert",Priority:"5",Tags:"rotating_light"}})
+    .then(r=>{if(!r.ok)throw new Error("HTTP "+r.status);return true;});
+}
+
+/* ================= GUARDIAN SCREEN ================= */
+if(gmatch){
+  $("app").hidden=true; $("gview").hidden=false; document.title="SentryLine Guardian";
+  const code=gmatch[1]; const seen=new Set(); const hist=[]; let soundOn=false;
+  $("genable").onclick=()=>{unlockAudio();soundOn=true;$("gnote").textContent="Alarm sound is on. Keep this tab open.";keepAwake();
+    try{if("Notification" in window&&Notification.permission==="default")Notification.requestPermission();}catch(e){}};
+  $("gstop").onclick=()=>{stopSiren();$("gstate").textContent="Alarm stopped";};
+  function got(p){
+    if(!p||p.code!==code||seen.has(p.id)) return; seen.add(p.id);
+    const who=p.name||"Your contact";
+    $("galert").hidden=false; $("gtitle").textContent=p.test?"Test alert from "+who:who+" may be on a scam call";
+    $("gbody").textContent=p.test?"Your guardian link works.":"Risk "+p.score+"/100. Signs: "+(p.signs||[]).join(", ")+". Call them now and tell them not to send money or share codes.";
+    $("gstate").textContent=p.test?"Test alert received":"ALERT: "+who;
+    const acts=$("gacts"); acts.textContent="";
+    if(p.phone){const a=el("a","btn","Call "+p.phone);a.href="tel:"+p.phone;acts.appendChild(a);}
+    if(!p.test){if(soundOn)startSiren();buzz();notify("SentryLine alert",who+" may be on a scam call (risk "+p.score+")");}
+    else if(soundOn){startSiren();setTimeout(stopSiren,2500);}
+    hist.unshift(new Date().toLocaleTimeString()+" · "+(p.test?"test":who+" · risk "+p.score));
+    const h=$("ghist"); h.textContent=""; hist.slice(0,8).forEach(t=>h.appendChild(el("div","inc",t)));
+  }
+  if(bc) bc.onmessage=e=>got(e.data);
+  try{
+    const es=new EventSource(NTFY+code+"/sse");
+    es.onopen=()=>{$("gconn").textContent="connected";};
+    es.onerror=()=>{$("gconn").textContent="reconnecting";};
+    es.onmessage=e=>{try{const m=JSON.parse(e.data);if(m.event==="message")got(JSON.parse(m.message));}catch(err){}};
+  }catch(e){$("gconn").textContent="same-browser only";}
+}
+
+/* ================= MAIN APP ================= */
+else {
+let contacts=store.get("contacts",[]);
+let settings=Object.assign({name:"",phone:"",siren:true,sms:true,rec:true,cd:5},store.get("settings",{}));
+let tg=Object.assign({token:"",chat:""},store.get("tg",{}));
+let evPromise=null;
+let incidents=store.get("incidents",[]);
+let pair=store.get("pair",null); if(!pair){pair=newCode();store.set("pair",pair);}
+
+const an=new Analyzer(); const history=[]; let current="Digital arrest scam", token=0;
+let alerted=false, lastResult=null, cdTimer=null, left=0, incident=null, sent=false;
+
+function renderScenarios(){
+  const box=$("scenarios"); box.textContent="";
+  Object.keys(SCENARIOS).forEach(name=>{
+    const b=el("button","scen",name); b.setAttribute("aria-pressed",String(name===current));
+    b.onclick=()=>{current=name;hardReset();renderScenarios();}; box.appendChild(b);
+  });
+}
+function chip(cls,txt){return el("span","chip "+cls,txt);}
+function draw(){
+  const W=320,H=120,L=8,R=8,T=8,B=14, y=v=>T+(H-T-B)*(1-v/100); let h="";
+  [[40,"var(--warn)"],[70,"var(--crit)"]].forEach(([v,c])=>{
+    h+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="${c}" stroke-dasharray="3 3" opacity=".6"/><text x="${W-R}" y="${y(v)-3}" text-anchor="end" font-size="8" fill="var(--muted)" font-family="IBM Plex Mono,monospace">${v}</text>`;
+  });
+  h+=`<line x1="${L}" x2="${W-R}" y1="${y(0)}" y2="${y(0)}" stroke="var(--line)"/>`;
+  const n=history.length;
+  if(n){
+    const x=i=>n===1?(L+W-R)/2:L+(W-L-R)*i/(Math.max(n-1,5));
+    const pts=history.map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+    const last=history[n-1], col=last>=70?"var(--crit)":last>=40?"var(--warn)":"var(--safe)";
+    h+=`<polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round"/><circle cx="${x(n-1).toFixed(1)}" cy="${y(last).toFixed(1)}" r="3.5" fill="${col}"/>`;
+  }
+  $("chart").innerHTML=h;
+}
+let prevLevel="SAFE";
+function show(chunk,r,ms){
+  const log=$("log"); if(log.querySelector(".empty")) log.textContent="";
+  const d=el("div","line "+r.level), body=el("span","");
+  body.append("“",highlight(chunk),"”");
+  d.append(el("small","",new Date().toLocaleTimeString([],{hour12:false})+" · risk "+r.score),body);
+  log.appendChild(d); log.scrollTop=log.scrollHeight;
+  $("score").textContent=r.score; $("score").className=r.level;
+  $("badge").textContent=r.level.replace("_"," "); $("badge").className="badge "+r.level;
+  $("why").textContent=r.why; $("action").textContent=r.action; $("lat").textContent="latency "+ms.toFixed(2)+" ms";
+  setGauge(r.score,r.level); setVectors(r);
+  const chips=$("chips"); chips.textContent="";
+  r.a.forEach(x=>chips.appendChild(chip("auth",x))); r.f.forEach(x=>chips.appendChild(chip("fin",x))); r.u.forEach(x=>chips.appendChild(chip("urg",x)));
+  if(r.cluster) chips.appendChild(chip("cluster","coercion cluster"));
+  if(!chips.children.length) chips.appendChild(el("span","empty","Nothing suspicious"));
+  stat.n++; stat.lat+=ms; stat.peak=Math.max(stat.peak,r.score); signs(r).forEach(s=>stat.vec.add(s)); renderStats();
+  history.push(r.score); draw(); lastResult=r; pulseNlp();
+  sys("ANALYZE risk "+r.score+" "+r.level+" ("+ms.toFixed(2)+" ms) "+(signs(r).length?"["+signs(r).slice(0,5).join(", ")+"]":""),r.level==="CRITICAL_SCAM"?"crit":r.level==="SUSPICIOUS"?"warn":"");
+  if(r.level!==prevLevel){sys("THRESHOLD "+prevLevel+" -> "+r.level,r.level==="SAFE"?"ok":r.level==="SUSPICIOUS"?"warn":"crit");prevLevel=r.level;}
+  if(r.level==="CRITICAL_SCAM"&&!alerted){alerted=true;onCritical(r);}
+}
+function submit(chunk){const t0=performance.now();const r=an.push(chunk);show(chunk,r,performance.now()-t0);}
+
+
+
+/* ---------- visual instruments: gauge, breakdown, stats, pipeline, system log, waveform ---------- */
+const stat={n:0,lat:0,peak:0,vec:new Set()};
+const LVLCOL={SAFE:"var(--safe)",SUSPICIOUS:"var(--warn)",CRITICAL_SCAM:"var(--crit)"};
+function sys(msg,lvl){
+  const box=$("syslog"); if(!box) return;
+  const d=el("div",lvl||"",new Date().toLocaleTimeString([],{hour12:false})+"  "+msg);
+  box.appendChild(d); while(box.children.length>80) box.removeChild(box.firstChild); box.scrollTop=box.scrollHeight;
+}
+function setGauge(score,level){
+  const L=251.33; $("g-prog").style.strokeDashoffset=String(L*(1-score/100)); $("g-prog").style.stroke=LVLCOL[level]||LVLCOL.SAFE;
+  $("g-needle").style.transform="rotate("+(-90+score*1.8)+"deg)";
+}
+function drawTicks(){
+  let s="";
+  [[0,"0"],[40,"40"],[70,"70"],[100,"100"]].forEach(([v,t])=>{
+    const th=Math.PI*(1-v/100), c=Math.cos(th), si=Math.sin(th);
+    s+=`<line class="tick" x1="${100+70*c}" y1="${100-70*si}" x2="${100+90*c}" y2="${100-90*si}"/><text x="${100+100*c}" y="${100-100*si+2}" text-anchor="middle">${t}</text>`;
+  });
+  $("g-ticks").innerHTML=s;
+}
+function setVectors(r){
+  const v={auth:r.a.length*15,fin:r.f.length*15,urg:r.u.length*10,clu:r.cluster?35:0};
+  Object.keys(v).forEach(k=>{$("vb-"+k).style.width=Math.min(v[k],100)+"%";$("vv-"+k).textContent=v[k]+" pts";});
+}
+function renderStats(){
+  $("st-n").textContent=stat.n; $("st-lat").textContent=stat.n?(stat.lat/stat.n).toFixed(2)+" ms":"–";
+  $("st-peak").textContent=stat.peak; $("st-win").textContent=an.ctx.length+"/"+WINDOW; $("st-vec").textContent=stat.vec.size;
+}
+function resetViz(){
+  stat.n=0;stat.lat=0;stat.peak=0;stat.vec=new Set(); renderStats(); setGauge(0,"SAFE"); setVectors({a:[],f:[],u:[],cluster:false}); setPipe();
+}
+let pulseT=null;
+function pulseNlp(){ nlpOn=true; setPipe(); clearTimeout(pulseT); pulseT=setTimeout(()=>{nlpOn=false;setPipe();},700); }
+let nlpOn=false;
+function stageSet(id,state,text){const n=$(id);n.dataset.state=state;n.querySelector("span").textContent=text;}
+function setPipe(){
+  stageSet("p-mic",micStream?"on":"idle",micStream?"live capture":"idle");
+  stageSet("p-asr",listening?"on":"idle",listening?"listening (en-IN)":"standby");
+  stageSet("p-nlp",nlpOn?"on":"idle",stat.n?("avg "+(stat.lat/stat.n).toFixed(2)+" ms"):"ready");
+  stageSet("p-act",alerted?"alert":"idle",alerted?"TRIGGERED":(settings.sms?"armed":"off"));
+}
+let micStream=null, analyser=null, recording=false;
+async function acquireMic(){
+  if(micStream&&micStream.active) return micStream;
+  micStream=await navigator.mediaDevices.getUserMedia({audio:true}); unlockAudio();
+  analyser=ac.createAnalyser(); analyser.fftSize=1024; ac.createMediaStreamSource(micStream).connect(analyser);
+  sys("Microphone opened","info"); setPipe(); return micStream;
+}
+function releaseMic(){
+  if(listening||recording) return;
+  if(micStream){micStream.getTracks().forEach(t=>t.stop());sys("Microphone released");}
+  micStream=null; analyser=null; setPipe();
+}
+const cv=$("wave"), cx=cv.getContext("2d");
+function waveLoop(){
+  const W=cv.width,H=cv.height; cx.clearRect(0,0,W,H);
+  cx.strokeStyle="rgba(56,212,244,.12)"; cx.lineWidth=1;
+  for(let i=1;i<4;i++){cx.beginPath();cx.moveTo(0,H*i/4);cx.lineTo(W,H*i/4);cx.stroke();}
+  if(analyser){
+    const td=new Uint8Array(analyser.fftSize), fd=new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteTimeDomainData(td); analyser.getByteFrequencyData(fd);
+    cx.fillStyle="rgba(56,212,244,.22)"; const bars=56, bw=W/bars;
+    for(let i=0;i<bars;i++){const v=fd[Math.floor(i*2.2)]/255;cx.fillRect(i*bw+1,H-v*H,bw-2,v*H);}
+    cx.strokeStyle="#38d4f4"; cx.lineWidth=2; cx.beginPath(); let peak=0;
+    for(let i=0;i<td.length;i++){const y=td[i]/255*H;peak=Math.max(peak,Math.abs(td[i]-128));i?cx.lineTo(i/td.length*W,y):cx.moveTo(0,y);}
+    cx.stroke(); $("wavestat").textContent="LIVE CAPTURE"; $("wavelvl").textContent="level "+Math.round(peak/128*100)+"%";
+  } else {
+    cx.strokeStyle="rgba(122,143,163,.6)"; cx.lineWidth=1.5; cx.beginPath(); cx.moveTo(0,H/2); cx.lineTo(W,H/2); cx.stroke();
+    $("wavestat").textContent="MIC IDLE"; $("wavelvl").textContent="";
+  }
+  requestAnimationFrame(waveLoop);
+}
+const ALLTERMS=[...AUTH.map(t=>[t,"auth"]),...FIN.map(t=>[t,"fin"]),...URG.map(t=>[t,"urg"])];
+const TERMMAP=Object.fromEntries(ALLTERMS);
+const TERMRX=new RegExp("\\b("+ALLTERMS.map(x=>x[0]).sort((a,b)=>b.length-a.length).map(rx).join("|")+")\\b","gi");
+function highlight(text){
+  const f=document.createDocumentFragment(); let last=0;
+  for(const m of text.matchAll(TERMRX)){ f.append(text.slice(last,m.index)); f.append(el("mark",TERMMAP[m[0].toLowerCase()],m[0])); last=m.index+m[0].length; }
+  f.append(text.slice(last)); return f;
+}
+
+/* ---------- evidence recording (first 10 seconds) ---------- */
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open("sentryline",1);r.onupgradeneeded=()=>r.result.createObjectStore("ev");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function idbPut(k,v){const d=await idb();return new Promise((res,rej)=>{const t=d.transaction("ev","readwrite");t.objectStore("ev").put(v,k);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);});}
+async function idbGet(k){const d=await idb();return new Promise((res,rej)=>{const q=d.transaction("ev").objectStore("ev").get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);});}
+async function idbClear(){try{const d=await idb();d.transaction("ev","readwrite").objectStore("ev").clear();}catch(e){}}
+const recState=t=>{const n=$("recstate");if(n)n.textContent=t;};
+function startEvidence(){
+  evPromise=null;
+  if(!settings.rec||!navigator.mediaDevices||!window.MediaRecorder) return;
+  evPromise=(async()=>{
+    try{
+      recording=true; const stream=await acquireMic();
+      const mt=["audio/webm;codecs=opus","audio/webm","audio/mp4"].find(t=>MediaRecorder.isTypeSupported(t));
+      const mr=new MediaRecorder(stream,mt?{mimeType:mt}:undefined); const chunks=[];
+      mr.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data);};
+      const done=new Promise(res=>{mr.onstop=()=>res(new Blob(chunks,{type:mr.mimeType||"audio/webm"}));});
+      mr.start(); recState("Recording evidence: first 10 seconds of the call…"); sys("EVIDENCE recording started (10 s)","info");
+      setTimeout(()=>{if(mr.state!=="inactive")mr.stop();},10000);
+      const blob=await done; recording=false; releaseMic();
+      recState("Evidence recorded (10 s). It is kept only if a scam is detected."); sys("EVIDENCE recorded "+Math.round(blob.size/1024)+" KB","ok"); return blob;
+    }catch(e){recording=false;releaseMic();recState("Evidence recording unavailable: allow the microphone to enable it.");sys("EVIDENCE unavailable (mic blocked)","warn");return null;}
+  })();
+}
+const extFor=b=>(b.type||"").includes("mp4")?"m4a":"webm";
+
+/* ---------- Telegram (automatic message + evidence upload) ---------- */
+async function tgCall(method,body){
+  const r=await fetch("https://api.telegram.org/bot"+tg.token+"/"+method,{method:"POST",body});
+  const j=await r.json(); if(!j.ok) throw new Error(j.description||"Telegram error"); return j;
+}
+const tgMessage=text=>tgCall("sendMessage",new URLSearchParams({chat_id:tg.chat,text}));
+function tgDocument(blob,caption){
+  const f=new FormData(); f.append("chat_id",tg.chat); f.append("caption",caption);
+  f.append("document",blob,"sentryline-evidence."+extFor(blob)); return tgCall("sendDocument",f);
+}
+
+/* ---------- incident response ---------- */
+const signs=r=>[...r.a,...r.f,...r.u];
+function alertText(r){
+  const who=settings.name.trim()||"Your contact";
+  return "SentryLine ALERT: "+who+" may be on a scam call right now (risk "+r.score+"/100). Signs: "+signs(r).slice(0,6).join(", ")+". Please call them now and tell them not to send money or share codes."+(settings.phone?" Their number: "+settings.phone:"");
+}
+function setOutcome(t){ if(incident){incident.outcome=t;store.set("incidents",incidents);renderIncidents();} }
+function onCritical(r){
+  incident={id:"i"+Date.now(),t:new Date().toISOString(),score:r.score,signs:signs(r).slice(0,8),outcome:"alarm raised"};
+  const inc=incident, pending=evPromise;
+  if(pending) pending.then(async blob=>{ if(!blob) return; try{await idbPut(inc.id,blob);inc.ev=blob.type||"audio/webm";store.set("incidents",incidents);renderIncidents();}catch(e){} });
+  incidents.unshift(incident); incidents=incidents.slice(0,20); store.set("incidents",incidents); renderIncidents();
+  sys("CRITICAL scam pattern confirmed (risk "+r.score+"): response engaged","crit"); setPipe();
+  if(settings.siren) startSiren(); buzz(); notify("SentryLine","Possible scam call detected (risk "+r.score+")");
+  openAlert(r);
+}
+function tick(){$("ov-count").textContent="Alerting your guardian and contacts in "+left+"s";}
+function openAlert(r){
+  sent=false; $("actions").textContent=""; $("ov-why").textContent=r.why; $("ov").hidden=false; $("ov-cancel").textContent="I'm safe, cancel";
+  $("ov-stop").hidden=!settings.siren; clearInterval(cdTimer);
+  if(settings.sms){
+    const cd=Number(settings.cd);
+    if(cd===0){sendNow();}
+    else{ $("ov-send").hidden=false; left=cd; tick();
+      cdTimer=setInterval(()=>{left--; if(left<=0){clearInterval(cdTimer);sendNow();} else tick();},1000); }
+  } else {$("ov-send").hidden=true;$("ov-count").textContent="Automatic alerts are turned off.";$("ov-cancel").textContent="Close";}
+}
+function sendNow(){
+  clearInterval(cdTimer); sent=true; $("ov-send").hidden=true; $("ov-cancel").textContent="Close";
+  const r=lastResult, msg=alertText(r), acts=$("actions"), inc=incident, outcomes=[]; acts.textContent="";
+  const addLine=t=>{const d=el("div","",t);acts.appendChild(d);return d;};
+  const fin=()=>{if(inc){inc.outcome=outcomes.join(", ")||"alarm raised, no automatic channel set up";store.set("incidents",incidents);renderIncidents();}};
+  $("ov-count").textContent="Sending alerts automatically…";
+  const gl=addLine("Alerting guardian screen…");
+  sendToGuardian(pair,{id:Date.now()+"-"+Math.random().toString(36).slice(2,7),name:settings.name.trim(),phone:settings.phone.trim(),score:r.score,signs:signs(r).slice(0,8),t:Date.now()})
+    .then(()=>{gl.textContent="Guardian screen alerted.";sys("Guardian screen alerted","ok");outcomes.push("guardian screen alerted");})
+    .catch(()=>{gl.textContent="Guardian screen could not be reached.";sys("Guardian push failed","warn");outcomes.push("guardian push failed");}).finally(fin);
+  if(tg.token&&tg.chat){
+    const tl=addLine("Sending Telegram message…");
+    (async()=>{
+      try{
+        await tgMessage(msg); tl.textContent="Telegram message sent.";sys("Telegram message sent","ok"); outcomes.push("Telegram message sent");
+        const blob=evPromise?await evPromise:null;
+        if(blob){tl.textContent="Telegram message sent. Uploading 10 s recording…";await tgDocument(blob,"SentryLine evidence: first 10 seconds of the call");tl.textContent="Telegram message and 10 s recording sent.";sys("Evidence recording uploaded to Telegram","ok");outcomes.push("recording uploaded");}
+      }catch(e){tl.textContent="Telegram failed: "+e.message;sys("Telegram failed: "+e.message,"crit");outcomes.push("Telegram failed");}
+      fin();
+    })();
+  } else addLine("Telegram is not set up, so no automatic message was sent. Use the buttons below or set it up in the Telegram panel.");
+  contacts.forEach(c=>{
+    const row=el("div","row"); row.appendChild(el("b","",c.name));
+    const sms=el("a","btn small","Text"); sms.href="sms:"+c.phone+"?&body="+encodeURIComponent(msg);
+    const wa=el("a","btn small","WhatsApp"); wa.href="https://wa.me/"+c.phone.replace(/\D/g,"")+"?text="+encodeURIComponent(msg); wa.target="_blank"; wa.rel="noopener";
+    const call=el("a","btn small","Call"); call.href="tel:"+c.phone;
+    row.append(sms,wa,call); acts.appendChild(row);
+  });
+  if(navigator.share){const b=el("button","small","Share alert…");b.onclick=()=>navigator.share({text:msg}).catch(()=>{});acts.appendChild(b);}
+}
+function dismiss(){clearInterval(cdTimer);stopSiren();$("ov").hidden=true;}
+$("ov-send").onclick=sendNow; $("ov-stop").onclick=stopSiren;
+$("ov-cancel").onclick=()=>{ sys("Alert dismissed by user");  if(!sent&&!$("ov-send").hidden) setOutcome("cancelled by user (marked safe)"); dismiss(); };
+
+/* ---------- contacts, settings, guardian panel, log ---------- */
+function cleanPhone(p){const s=p.replace(/[\s\-()]/g,"");return /^\+?\d{7,15}$/.test(s)?s:null;}
+function renderContacts(){
+  const box=$("contacts"); box.textContent="";
+  if(!contacts.length) box.appendChild(el("span","empty","No contacts yet. Add family who should be messaged in an emergency."));
+  contacts.forEach((c,i)=>{
+    const it=el("div","item"), who=el("div","who"); who.append(el("b","",c.name),el("span","",c.phone));
+    const acts=el("div","acts"), call=el("a","btn small","Call"), rm=el("button","small","Remove");
+    call.href="tel:"+c.phone; rm.onclick=()=>{contacts.splice(i,1);store.set("contacts",contacts);renderContacts();};
+    acts.append(call,rm); it.append(who,acts); box.appendChild(it);
+  });
+}
+$("cf").addEventListener("submit",e=>{
+  e.preventDefault(); const name=$("cname").value.trim(), ph=cleanPhone($("cphone").value);
+  if(!name||!ph){$("status").textContent="Enter a name and a valid phone number, for example +919876543210.";return;}
+  if(contacts.length>=5){$("status").textContent="You can add up to 5 contacts.";return;}
+  if(contacts.some(c=>c.phone===ph)){$("status").textContent="That number is already added.";return;}
+  contacts.push({name,phone:ph}); store.set("contacts",contacts); renderContacts(); $("cname").value=""; $("cphone").value=""; $("status").textContent="Added "+name+".";
+});
+$("myname").value=settings.name; $("myphone").value=settings.phone; $("opt-siren").checked=settings.siren; $("opt-sms").checked=settings.sms;
+[["myname","name"],["myphone","phone"]].forEach(([id,k])=>$(id).addEventListener("input",()=>{settings[k]=$(id).value;store.set("settings",settings);}));
+$("opt-siren").addEventListener("change",()=>{settings.siren=$("opt-siren").checked;store.set("settings",settings);});
+$("opt-sms").addEventListener("change",()=>{settings.sms=$("opt-sms").checked;store.set("settings",settings);setPipe();});
+
+function guardianLink(){return location.href.split("#")[0]+"#guardian="+pair;}
+function renderPair(){$("paircode").textContent=pair;$("glink").value=guardianLink();}
+$("copylink").onclick=()=>{
+  const done=()=>{$("gstatus").textContent="Link copied. Open it on your guardian's device.";};
+  const fb=()=>{$("glink").select();$("gstatus").textContent="Press Ctrl+C (or long-press) to copy the link.";};
+  try{navigator.clipboard.writeText($("glink").value).then(done,fb);}catch(e){fb();}
+};
+$("newcode").onclick=()=>{pair=newCode();store.set("pair",pair);renderPair();$("gstatus").textContent="New code created. Share the new link with your guardian.";};
+$("testg").onclick=()=>{
+  $("gstatus").textContent="Sending test alert…";
+  sendToGuardian(pair,{id:"t-"+Date.now(),test:true,name:settings.name.trim(),phone:settings.phone.trim(),score:0,signs:[],t:Date.now()})
+    .then(()=>{$("gstatus").textContent="Test alert sent. Your guardian screen should react within a few seconds.";})
+    .catch(()=>{$("gstatus").textContent="Could not reach the alert service. Check the internet connection. Guardian tabs in this same browser still receive it.";});
+};
+function renderIncidents(){
+  const box=$("incidents"); box.textContent="";
+  if(!incidents.length){box.appendChild(el("span","empty","No incidents yet. Detected scam calls are saved here."));return;}
+  incidents.forEach(i=>{
+    const d=el("div","inc");d.append(el("small","",new Date(i.t).toLocaleString()+" · risk "+i.score),el("div","","Signs: "+i.signs.join(", ")),el("div","","Outcome: "+i.outcome));
+    if(i.ev&&i.id){
+      const row=el("div","row"); row.style.marginTop="6px"; const b=el("button","small","Play 10 s evidence");
+      b.onclick=async()=>{
+        try{const blob=await idbGet(i.id); if(!blob){b.textContent="Recording not found";return;}
+          const url=URL.createObjectURL(blob); const au=document.createElement("audio"); au.controls=true; au.src=url; au.style.maxWidth="100%";
+          const dl=el("a","btn small","Download"); dl.href=url; dl.download="sentryline-evidence-"+i.id+"."+extFor(blob);
+          row.textContent=""; row.append(au,dl); au.play().catch(()=>{});
+        }catch(e){b.textContent="Could not open recording";}
+      };
+      row.appendChild(b); d.appendChild(row);
+    }
+    box.appendChild(d);
+  });
+}
+$("clearlog").onclick=()=>{idbClear();incidents=[];incident=null;store.set("incidents",incidents);renderIncidents();};
+
+
+$("opt-cd").value=String(settings.cd); $("opt-rec").checked=settings.rec;
+$("opt-cd").addEventListener("change",()=>{settings.cd=Number($("opt-cd").value);store.set("settings",settings);});
+$("opt-rec").addEventListener("change",()=>{settings.rec=$("opt-rec").checked;store.set("settings",settings);});
+$("tgtoken").value=tg.token; $("tgchat").value=tg.chat;
+const saveTg=()=>{tg.token=$("tgtoken").value.trim();tg.chat=$("tgchat").value.trim();store.set("tg",tg);};
+$("tgtoken").addEventListener("input",saveTg); $("tgchat").addEventListener("input",saveTg);
+const tgs=t=>{$("tgstatus").textContent=t;};
+$("tgfind").onclick=async()=>{
+  saveTg(); if(!tg.token){tgs("Paste the bot token first.");return;}
+  tgs("Looking for your chat…");
+  try{
+    const j=await tgCall("getUpdates",new URLSearchParams({limit:"20"}));
+    const m=[...j.result].reverse().map(u=>u.message||u.channel_post||(u.my_chat_member&&{chat:u.my_chat_member.chat})).find(x=>x&&x.chat);
+    if(!m){tgs("No chat found. Add the bot to a chat with your guardian, send any message, then press Find chat again.");return;}
+    $("tgchat").value=String(m.chat.id); saveTg(); tgs("Found chat: "+(m.chat.title||m.chat.first_name||m.chat.id)+". Now send a test message.");
+  }catch(e){tgs("Could not look up chats: "+e.message);}
+};
+$("tgtest").onclick=async()=>{
+  saveTg(); if(!tg.token||!tg.chat){tgs("Enter the bot token and chat ID first.");return;}
+  tgs("Sending…");
+  try{await tgMessage("SentryLine test: "+(settings.name.trim()||"A friend")+" set up automatic scam alerts. You will get a message like this, with a 10 second recording, if a scam call is detected.");tgs("Test message sent. Check Telegram.");}
+  catch(e){tgs("Failed: "+e.message);}
+};
+
+/* ---------- live microphone (browser speech recognition) ---------- */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let rec=null, listening=false;
+function setListenUI(){ if(!listening) releaseMic(); setPipe();  $("listen").textContent=listening?"Stop listening":"Listen with mic"; $("listen").classList.toggle("primary",listening); if(!listening)$("interim").textContent=""; }
+$("listen").onclick=()=>{
+  if(!SR){$("interim").textContent="This browser has no speech recognition. Use Chrome or Edge, or play a sample call.";return;}
+  if(listening){listening=false;try{rec.stop();}catch(e){} releaseAwake(); setListenUI(); sys("ASR session stopped"); return;}
+  hardReset(); startEvidence(); unlockAudio(); keepAwake();
+  try{if("Notification" in window&&Notification.permission==="default")Notification.requestPermission();}catch(e){}
+  rec=new SR(); rec.lang="en-IN"; rec.continuous=true; rec.interimResults=true;
+  rec.onresult=e=>{
+    let interim="";
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const t=e.results[i][0].transcript.trim();
+      if(e.results[i].isFinal){ if(t) submit(t); } else interim+=t+" ";
+    }
+    $("interim").textContent=interim?"Hearing: "+interim:"Listening…";
+  };
+  rec.onend=()=>{ if(listening){try{rec.start();}catch(e){}} };
+  rec.onerror=e=>{
+    if(e.error==="not-allowed"||e.error==="service-not-allowed"){listening=false;setListenUI();$("interim").textContent="Microphone blocked. Allow it in the address bar, and open this page over https or localhost.";}
+  };
+  listening=true; setListenUI(); $("interim").textContent="Listening…"; sys("ASR session started (en-IN, continuous)","info"); acquireMic().catch(()=>{});
+  try{rec.start();}catch(e){}
+};
+if(!SR) $("listen").title="Needs Chrome or Edge";
+
+/* ---------- call control ---------- */
+function hardReset(){
+  token++; dismiss(); alerted=false; incident=null; an.reset(); history.length=0;
+  $("log").innerHTML='<span class="empty">Press Listen and speak, play a sample call, or type a sentence below.</span>';
+  $("score").textContent="0"; $("score").className="SAFE"; $("badge").textContent="SAFE"; $("badge").className="badge SAFE";
+  $("why").textContent="No call analysed yet."; $("action").textContent="MONITOR";
+  $("chips").innerHTML='<span class="empty">Nothing yet</span>'; $("lat").textContent="latency –";
+  $("play").disabled=false; $("play").textContent="Play sample call"; draw(); prevLevel="SAFE"; resetViz(); sys("Session reset");
+}
+$("play").onclick=async()=>{
+  hardReset(); startEvidence(); unlockAudio(); const my=token; $("play").disabled=true; $("play").textContent="Call in progress";
+  for(const line of SCENARIOS[current]){ if(my!==token) return; submit(line); await new Promise(r=>setTimeout(r,1800)); }
+  if(my===token){$("play").disabled=false;$("play").textContent="Play again";}
+};
+$("reset").onclick=()=>{ if(listening){listening=false;try{rec.stop();}catch(e){} releaseAwake();setListenUI();} hardReset(); };
+$("f").addEventListener("submit",e=>{e.preventDefault();unlockAudio();const v=$("say").value.trim();if(!v)return;submit(v);$("say").value="";});
+
+renderScenarios(); renderContacts(); renderIncidents(); renderPair(); draw(); drawTicks(); resetViz(); waveLoop();
+sys("SentryLine engine ready. Rules loaded: "+(AUTH.length+FIN.length+URG.length)+" signals, window "+WINDOW,"ok");
+const clk=()=>{$("clock").textContent=new Date().toLocaleTimeString([],{hour12:false});}; clk(); setInterval(clk,1000);
+}
+</script>
+</body></html>
